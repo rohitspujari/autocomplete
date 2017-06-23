@@ -1,10 +1,14 @@
 import React, { Component } from "react";
-import { Text, View, TextInput, Dimensions, FlatList, Keyboard} from "react-native";
+import { Text, View, TextInput, Dimensions, FlatList, Keyboard, ActivityIndicator} from "react-native";
 import { SearchBar, List, ListItem } from "react-native-elements";
 import axios from "axios";
+import ProductCard from '../components/ProductCard';
+//const {height, width} = Dimensions.get('window');
 //const AUTOCOMPLETE_API = "http://localhost:8010/rlabs-247d8/us-central1/autocomplete";
 const AUTOCOMPLETE_API =
   "https://us-central1-one-time-password-24ef8.cloudfunctions.net/autocomplete";
+
+const PRODUCT_LOOKUP_API = "https://us-central1-one-time-password-24ef8.cloudfunctions.net/lookupByKey";
 
 const { height, width } = Dimensions.get("window");
 
@@ -13,6 +17,8 @@ export default class Autocomplete extends Component {
     inputValue: "",
     autocompleteData: [],
     showSuggestions: true,
+    productData: {},
+    isProductLoading: false
 
   };
 
@@ -29,11 +35,26 @@ export default class Autocomplete extends Component {
     //console.log(inputValue)
   };
 
+  renderProductCard = () => {
+
+    if(this.state.isProductLoading){
+      return <ActivityIndicator size='large' style={{marginTop: 50}} animating/>
+    }
+    else{
+      return(
+        <ProductCard data={this.state.productData} />
+      );
+    }
+  }
 
   renderSuggestions = () => {
     return (
       <List
         containerStyle={{
+          position:'absolute',
+          top:50,
+          left: 0,
+          width: width,
           marginTop:0,
           borderTopWidth: 0,
           borderBottomWidth: 0
@@ -49,6 +70,20 @@ export default class Autocomplete extends Component {
             onPress={()=> {
               Keyboard.dismiss()
               this.setState({showSuggestions:false, autocompleteData:[], inputValue: item.text})
+              const request = {
+                kind: 'products',
+                key: Number(item._id)
+              }
+              const request2 = {
+                kind: 'products',
+                key: item._id
+              }
+              this.setState({isProductLoading: true})
+              axios.post(PRODUCT_LOOKUP_API, request).then((response, error) => {
+                console.log(response.data);
+                this.setState({ productData: response.data, isProductLoading: false });
+              });
+
             }}
 
           />
@@ -64,7 +99,6 @@ export default class Autocomplete extends Component {
       <View style={styles.container}>
 
         <SearchBar
-          ref={ component => this._textInput = component}
           lightTheme
           containerStyle={{
             backgroundColor:'white',
@@ -74,14 +108,17 @@ export default class Autocomplete extends Component {
           inputStyle={{
             backgroundColor: "white"
           }}
-          onFocus={()=>{this.setState({ inputValue:'', showSuggestions:true})}}
+          onFocus={()=>{this.setState({ inputValue:'', showSuggestions:true,})}}
           value={this.state.inputValue}
           onChangeText={this._handleTextChange}
           placeholder="search"
           autoCorrect={false}
         />
 
+
+        {this.state.productData.name !== undefined ? this.renderProductCard(): <View/>}
         {this.state.showSuggestions == true ? this.renderSuggestions(): <View />}
+
 
 
       </View>
